@@ -1,0 +1,16 @@
+name: MultiPolarCurrency
+version: 0.1.0
+main: com.brandon.multipolarcurrency.MultiPolarCurrencyPlugin
+api-version: "1.21"
+
+commands:
+  bal:
+    description: View balances
+    usage: /bal [currency]
+  currency:
+    description: Currency management
+    usage: /currency
+
+permissions:
+  multipolarcurrency.admin:
+    default: op
