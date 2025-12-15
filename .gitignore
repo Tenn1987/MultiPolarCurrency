@@ -12,6 +12,10 @@ target/
 *.iws
 *.iml
 *.ipr
+out/
+
+### Maven###
+target/
 
 ### Eclipse ###
 .apt_generated
