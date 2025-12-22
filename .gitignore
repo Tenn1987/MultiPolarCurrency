@@ -4,6 +4,16 @@ target/
 !**/src/test/**/target/
 .kotlin
 
+# Server runtime (never commit)
+server/
+*.jar
+
+# Logs & OS junk
+logs/
+*.log
+.DS_Store
+Thumbs.db
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
