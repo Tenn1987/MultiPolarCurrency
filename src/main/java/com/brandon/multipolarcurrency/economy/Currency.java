@@ -7,7 +7,8 @@ public record Currency(
         String displayName,
         String symbol,
         BackingType backingType,
-        Optional<String> backingCommodity, // IRON, GOLD, WHEAT (if commodity)
+        java.util.Optional<String> backingMaterial, // e.g. "IRON_INGOT", "COPPER_INGOT", "GOLD_INGOT"
+        long unitsPerBackingItem,                  // e.g. 10 = 1 ingot -> 10 units // IRON, GOLD, WHEAT (if commodity)
         boolean mintable,
         boolean enabled
 ) {}

@@ -6,6 +6,7 @@ import com.brandon.multipolarcurrency.economy.CurrencyManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.Material;
 
 import java.util.Optional;
 
@@ -69,33 +70,86 @@ public class CurrencyCommand implements CommandExecutor {
         }
 
         if (args.length < 4) {
-            sender.sendMessage("§cUsage: /currency create <code> <symbol> <name>");
+            sender.sendMessage("§cUsage:");
+            sender.sendMessage("§e/currency create <code> <symbol> <name...>");
+            sender.sendMessage("§e/currency create <code> <symbol> <name...> commodity <IRON_INGOT|COPPER_INGOT|GOLD_INGOT> <unitsPerBackingItem>");
             return;
         }
 
         String code = args[1].toUpperCase();
         String symbol = args[2];
-        String name = String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length));
 
         if (currencyManager.exists(code)) {
             sender.sendMessage("§cCurrency already exists.");
             return;
         }
 
-        // Default: fiat + enabled + mintable (you can change these defaults later)
+        // Detect commodity mode: "... commodity MATERIAL UNITS"
+        boolean commodityMode = args.length >= 7 && "commodity".equalsIgnoreCase(args[args.length - 3]);
+
+        BackingType backingType = commodityMode ? BackingType.COMMODITY : BackingType.FIAT;
+        Optional<String> backingMaterial = Optional.empty();
+        long unitsPerBackingItem = 0L;
+
+        int nameEndExclusive = commodityMode ? (args.length - 3) : args.length; // stop before "commodity MATERIAL UNITS"
+        String name = String.join(" ", java.util.Arrays.copyOfRange(args, 3, nameEndExclusive));
+
+        if (name.isBlank()) {
+            sender.sendMessage("§cName cannot be empty.");
+            return;
+        }
+
+        if (commodityMode) {
+            String materialName = args[args.length - 2].toUpperCase();
+            String unitsStr = args[args.length - 1];
+
+            // Parse unitsPerBackingItem
+            try {
+                unitsPerBackingItem = Long.parseLong(unitsStr);
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§cunitsPerBackingItem must be a whole number (e.g. 10).");
+                return;
+            }
+            if (unitsPerBackingItem <= 0) {
+                sender.sendMessage("§cunitsPerBackingItem must be > 0.");
+                return;
+            }
+
+            Material mat = Material.matchMaterial(materialName);
+            if (mat == null || mat.isAir()) {
+                sender.sendMessage("§cUnknown material: " + materialName);
+                return;
+            }
+
+            // Allowed backing metals
+            if (mat != Material.IRON_INGOT && mat != Material.COPPER_INGOT && mat != Material.GOLD_INGOT) {
+                sender.sendMessage("§cBacking material must be IRON_INGOT, COPPER_INGOT, or GOLD_INGOT.");
+                return;
+            }
+
+            backingMaterial = Optional.of(mat.name());
+        }
+
         Currency c = new Currency(
                 code,
                 name,
                 symbol,
-                BackingType.FIAT,
-                Optional.empty(),
-                true,   // mintable
-                true    // enabled
+                backingType,
+                backingMaterial,
+                unitsPerBackingItem,
+                true,  // mintable
+                true   // enabled
         );
 
         currencyManager.register(c);
 
-
-        sender.sendMessage("§aCreated currency §f" + c.code() + " §7(" + c.symbol() + "§7) §a" + c.displayName());
+        if (commodityMode) {
+            sender.sendMessage("§aCreated commodity currency §f" + c.code()
+                    + " §7backed by §f" + backingMaterial.orElse("?")
+                    + " §7(§f1§7 -> §f" + c.unitsPerBackingItem() + "§7 units).");
+        } else {
+            sender.sendMessage("§aCreated fiat currency §f" + c.code() + " §7(" + c.symbol() + "§7) §a" + c.displayName());
+        }
     }
+
 }
