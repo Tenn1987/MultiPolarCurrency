@@ -14,19 +14,25 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        currencyManager = new CurrencyManager();
+        currencyManager = new CurrencyManager(this);
 
-// Bootstrap defaults
         currencyManager.register(new Currency(
-                "SILVER",
-                "Silver Coins",
-                "⛀",
+                "SHEKEL",
+                "Shekels of Silver",
+                "₪",
                 BackingType.COMMODITY,
-                Optional.of("IRON_INGOT"), // or SILVER backing later if you add it
+                Optional.of("IRON_NUGGET"),
                 10L,
                 true,
                 true
         ));
+
+        // Only adds defaults if file is empty/missing
+        this.currencyManager.bootstrapDefaultsIfEmpty();
+
+        getCommand("currency").setExecutor(new CurrencyCommand(currencyManager));
+
+        getLogger().info("MultiPolarCurrency enabled.");
 
 
         getCommand("currency").setExecutor(new CurrencyCommand(currencyManager));

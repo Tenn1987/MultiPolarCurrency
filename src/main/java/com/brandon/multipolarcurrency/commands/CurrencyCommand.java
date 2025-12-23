@@ -32,6 +32,9 @@ public class CurrencyCommand implements CommandExecutor {
             case "list" -> listCurrencies(sender);
             case "info" -> currencyInfo(sender, args);
             case "create" -> createCurrency(sender, args);
+            case "delete" -> deleteCurrency(sender, args);
+            case "purge" -> purgeCurrency(sender, args);
+
             default -> sender.sendMessage("§cUnknown subcommand.");
         }
 
@@ -122,8 +125,11 @@ public class CurrencyCommand implements CommandExecutor {
             }
 
             // Allowed backing metals
-            if (mat != Material.IRON_INGOT && mat != Material.COPPER_INGOT && mat != Material.GOLD_INGOT) {
-                sender.sendMessage("§cBacking material must be IRON_INGOT, COPPER_INGOT, or GOLD_INGOT.");
+            if (mat != Material.IRON_INGOT && mat != Material.IRON_NUGGET
+                    && mat != Material.COPPER_INGOT && mat != Material.GOLD_NUGGET
+                    && mat != Material.GOLD_INGOT) {
+                sender.sendMessage("§cBacking material must be IRON_INGOT, IRON_NUGGET, " +
+                        "COPPER_INGOT, GOLD_NUGGET, or GOLD_INGOT.");
                 return;
             }
 
@@ -151,5 +157,45 @@ public class CurrencyCommand implements CommandExecutor {
             sender.sendMessage("§aCreated fiat currency §f" + c.code() + " §7(" + c.symbol() + "§7) §a" + c.displayName());
         }
     }
+    private void deleteCurrency(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("multipolarcurrency.admin")) {
+            sender.sendMessage("§cYou do not have permission.");
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage("§cUsage: /currency delete <code>");
+            return;
+        }
 
+        String code = args[1].toUpperCase();
+        if (!currencyManager.exists(code)) {
+            sender.sendMessage("§cCurrency not found.");
+            return;
+        }
+
+        boolean ok = currencyManager.disable(code);
+        if (ok) sender.sendMessage("§eCurrency §f" + code + " §edisabled (soft delete).");
+        else sender.sendMessage("§cFailed to disable currency.");
+    }
+
+    private void purgeCurrency(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("multipolarcurrency.admin")) {
+            sender.sendMessage("§cYou do not have permission.");
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage("§cUsage: /currency purge <code>");
+            return;
+        }
+
+        String code = args[1].toUpperCase();
+        if (!currencyManager.exists(code)) {
+            sender.sendMessage("§cCurrency not found.");
+            return;
+        }
+
+        boolean ok = currencyManager.purge(code);
+        if (ok) sender.sendMessage("§cCurrency §f" + code + " §cpurged (hard delete).");
+        else sender.sendMessage("§cFailed to purge currency.");
+    }
 }
