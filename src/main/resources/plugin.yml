@@ -1,5 +1,5 @@
 name: MultiPolarCurrency
-version: 0.1.3
+version: 0.1.4
 main: com.brandon.multipolarcurrency.MultiPolarCurrencyPlugin
 api-version: "1.21"
 
