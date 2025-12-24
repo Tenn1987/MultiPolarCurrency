@@ -1,15 +1,22 @@
 name: MultiPolarCurrency
-version: 0.1.2
+version: 0.1.3
 main: com.brandon.multipolarcurrency.MultiPolarCurrencyPlugin
 api-version: "1.21"
 
 commands:
-  bal:
-    description: View balances
-    usage: /bal [currency]
-  currency:
-    description: Currency management
-    usage: /currency
+currency:
+  description: Currency management
+  usage: /currency <list|info|create|delete>
+  permission: multipolarcurrency.admin
+
+  balance:
+    description: Check balances
+    usage: /balance [CODE]
+    aliases: [bal, money]
+
+  mint:
+    description: Coin Management
+    usage: /mint
 
 permissions:
   multipolarcurrency.admin:
