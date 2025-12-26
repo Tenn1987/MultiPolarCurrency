@@ -4,46 +4,87 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryWalletService implements WalletService {
 
-    // player -> (currency -> balance)
-    protected final Map<UUID, Map<String, Long>> wallets = new HashMap<>();
+    protected final Map<UUID, Map<String, Long>> wallets = new ConcurrentHashMap<>();
 
     protected Map<String, Long> wallet(UUID playerId) {
-        return wallets.computeIfAbsent(playerId, k -> new HashMap<>());
+        return wallets.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>());
+    }
+
+    protected static String norm(String code) {
+        return code == null ? "" : code.trim().toUpperCase();
     }
 
     @Override
-    public long getBalance(UUID playerId, String currencyCode) {
-        return wallet(playerId).getOrDefault(currencyCode.toUpperCase(), 0L);
-    }
+    public boolean deposit(UUID playerId, String currencyCode, long amount) {
+        if (playerId == null) return false;
+        if (amount < 0) return false;
 
-    @Override
-    public void setBalance(UUID playerId, String currencyCode, long amount) {
-        if (amount < 0) amount = 0;
-        wallet(playerId).put(currencyCode.toUpperCase(), amount);
-    }
+        String code = norm(currencyCode);
+        if (code.isEmpty()) return false;
 
-    @Override
-    public void deposit(UUID playerId, String currencyCode, long amount) {
-        if (amount <= 0) return;
-        String code = currencyCode.toUpperCase();
-        wallet(playerId).merge(code, amount, Long::sum);
-    }
+        Map<String, Long> w = wallet(playerId);
+        long cur = w.getOrDefault(code, 0L);
 
-    @Override
-    public boolean withdraw(UUID playerId, String currencyCode, long amount) {
-        if (amount <= 0) return false;
-        String code = currencyCode.toUpperCase();
-        long bal = getBalance(playerId, code);
-        if (bal < amount) return false;
-        setBalance(playerId, code, bal - amount);
+        // basic overflow safety
+        long next;
+        try {
+            next = Math.addExact(cur, amount);
+        } catch (ArithmeticException ex) {
+            return false;
+        }
+
+        w.put(code, next);
         return true;
     }
 
     @Override
-    public Map<String, Long> getAllBalances(UUID playerId) {
-        return Collections.unmodifiableMap(wallet(playerId));
+    public boolean withdraw(UUID playerId, String currencyCode, long amount) {
+        if (playerId == null) return false;
+        if (amount < 0) return false;
+
+        String code = norm(currencyCode);
+        if (code.isEmpty()) return false;
+
+        Map<String, Long> w = wallet(playerId);
+        long cur = w.getOrDefault(code, 0L);
+        if (cur < amount) return false;
+
+        w.put(code, cur - amount);
+        return true;
+    }
+
+    @Override
+    public long balance(UUID playerId, String currencyCode) {
+        if (playerId == null) return 0L;
+        String code = norm(currencyCode);
+        if (code.isEmpty()) return 0L;
+        return wallet(playerId).getOrDefault(code, 0L);
+    }
+
+    @Override
+    public Map<String, Long> allBalances(UUID playerId) {
+        if (playerId == null) return Collections.emptyMap();
+        // return a copy to avoid external mutation
+        return Collections.unmodifiableMap(new HashMap<>(wallet(playerId)));
+    }
+
+    @Override
+    public void save() {
+        // no-op for memory version
+    }
+
+    @Override
+    public void setBalance(UUID playerId, String currencyCode, long amount) {
+        if (playerId == null) return;
+        if (amount < 0) amount = 0;
+
+        String code = norm(currencyCode);
+        if (code.isEmpty()) return;
+
+        wallet(playerId).put(code, amount);
     }
 }

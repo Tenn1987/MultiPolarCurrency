@@ -80,9 +80,10 @@ public class YamlWalletService extends InMemoryWalletService {
     }
 
     @Override
-    public void deposit(UUID playerId, String currencyCode, long amount) {
-        super.deposit(playerId, currencyCode, amount);
-        save();
+    public boolean deposit(UUID playerId, String currencyCode, long amount) {
+        boolean ok = super.deposit(playerId, currencyCode, amount);
+        if (ok) save();
+        return ok;
     }
 
     @Override

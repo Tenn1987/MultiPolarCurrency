@@ -1,23 +1,27 @@
 name: MultiPolarCurrency
-version: 0.1.6
+version: 0.1.7
 main: com.brandon.multipolarcurrency.MultiPolarCurrencyPlugin
 api-version: "1.21"
 
 commands:
   currency:
-    description: Manage currencies
+    description: Currency management
     usage: /currency <list|info|create|delete>
     permission: multipolarcurrency.admin
-    permission-message: You do not have permission.
 
   balance:
-    description: View currency balances
-    usage: /balance [currency]
-    aliases: [bal]
+    description: Check balances
+    usage: /balance [CODE]
+    aliases: [bal, money]
 
   mint:
-    description: Mint currency (commodity-backed consumes backing items)
-    usage: /mint <code> <amount> [player]
+    description: Mint currency into wallet (backing checked)
+    usage: /mint <CODE> <amount>
+
+  wallet:
+    description: Convert wallet balance <-> physical notes/coins
+    usage: /wallet <balance|withdraw|deposit> [CODE] [amount]
+    aliases: [w]
 
 permissions:
   multipolarcurrency.admin:

@@ -3,6 +3,7 @@ package com.brandon.multipolarcurrency;
 import com.brandon.multipolarcurrency.commands.BalanceCommand;
 import com.brandon.multipolarcurrency.commands.CurrencyCommand;
 import com.brandon.multipolarcurrency.commands.MintCommand;
+import com.brandon.multipolarcurrency.commands.WalletCommand;
 import com.brandon.multipolarcurrency.economy.BackingType;
 import com.brandon.multipolarcurrency.economy.Currency;
 import com.brandon.multipolarcurrency.economy.CurrencyManager;
@@ -52,6 +53,9 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
 
         Objects.requireNonNull(getCommand("mint"), "mint missing from plugin.yml")
                 .setExecutor(new MintCommand(currencyManager, walletService));
+
+        Objects.requireNonNull(getCommand("wallet"), "wallet missing from plugin.yml")
+                .setExecutor(new WalletCommand(this, currencyManager, walletService));
 
         getLogger().info("MultiPolarCurrency enabled.");
     }
