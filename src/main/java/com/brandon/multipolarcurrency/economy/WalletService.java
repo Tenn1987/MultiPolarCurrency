@@ -1,12 +1,21 @@
 package com.brandon.multipolarcurrency.economy;
 
+import java.util.Map;
 import java.util.UUID;
 
 public interface WalletService {
 
-    boolean deposit(UUID playerId, String currencyCode, long amount);
+    long getBalance(UUID playerId, String currencyCode);
+
+    void setBalance(UUID playerId, String currencyCode, long amount);
+
+    void deposit(UUID playerId, String currencyCode, long amount);
 
     boolean withdraw(UUID playerId, String currencyCode, long amount);
 
-    long getBalance(UUID playerId, String currencyCode);
+    /** Optional helper for debugging / admin later */
+    Map<String, Long> getAllBalances(UUID playerId);
+
+    /** Persist to disk (no-op for memory wallet). */
+    default void save() {}
 }

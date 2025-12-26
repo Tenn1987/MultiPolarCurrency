@@ -60,6 +60,7 @@ public class CurrencyCommand implements CommandExecutor {
                     sender.sendMessage("§7Code: §f" + c.code());
                     sender.sendMessage("§7Name: §f" + c.displayName());
                     sender.sendMessage("§7Symbol: §f" + c.symbol());
+                    sender.sendMessage("§7Issuer: §f" + c.issuerOr("SYSTEM"));
                     sender.sendMessage("§7Enabled: §f" + c.enabled());
                 },
                 () -> sender.sendMessage("§cCurrency not found.")
@@ -129,7 +130,7 @@ public class CurrencyCommand implements CommandExecutor {
                     && mat != Material.COPPER_INGOT && mat != Material.GOLD_NUGGET
                     && mat != Material.GOLD_INGOT) {
                 sender.sendMessage("§cBacking material must be IRON_INGOT, IRON_NUGGET, " +
-                        "COPPER_INGOT, GOLD_NUGGET, or GOLD_INGOT.");
+                        "COPPER_INGOT, COPPER_NUGGET, GOLD_NUGGET, or GOLD_INGOT.");
                 return;
             }
 
@@ -137,15 +138,22 @@ public class CurrencyCommand implements CommandExecutor {
         }
 
         Currency c = new Currency(
-                code,
-                name,
-                symbol,
-                backingType,
-                backingMaterial,
-                unitsPerBackingItem,
-                true,  // mintable
-                true   // enabled
+                code, name, symbol,
+                BackingType.FIAT,
+                Optional.empty(),
+                1L,
+                true,
+                true
         );
+
+// “upgrade” to include issuer (records are immutable, so create a new one):
+        c = new Currency(
+                c.code(), c.displayName(), c.symbol(),
+                c.backingType(), c.backingMaterial(), c.unitsPerBackingItem(),
+                c.mintable(), c.enabled(),
+                Optional.of(sender.getName())
+        );
+
 
         currencyManager.register(c);
 
@@ -168,15 +176,23 @@ public class CurrencyCommand implements CommandExecutor {
         }
 
         String code = args[1].toUpperCase();
-        if (!currencyManager.exists(code)) {
-            sender.sendMessage("§cCurrency not found.");
-            return;
-        }
 
-        boolean ok = currencyManager.disable(code);
-        if (ok) sender.sendMessage("§eCurrency §f" + code + " §edisabled (soft delete).");
-        else sender.sendMessage("§cFailed to disable currency.");
+        currencyManager.getCurrency(code).ifPresentOrElse(c -> {
+            Currency disabled = new Currency(
+                    c.code(), c.displayName(), c.symbol(),
+                    c.backingType(), c.backingMaterial(), c.unitsPerBackingItem(),
+                    false,  // mintable OFF
+                    false,  // enabled OFF
+                    c.issuer()
+            );
+
+            currencyManager.register(disabled); // overwrite existing by code
+            currencyManager.save();             // if you have save()
+
+            sender.sendMessage("§aDisabled currency §f" + code + "§a (minting OFF, enabled OFF).");
+        }, () -> sender.sendMessage("§cCurrency not found."));
     }
+
 
     private void purgeCurrency(CommandSender sender, String[] args) {
         if (!sender.hasPermission("multipolarcurrency.admin")) {
