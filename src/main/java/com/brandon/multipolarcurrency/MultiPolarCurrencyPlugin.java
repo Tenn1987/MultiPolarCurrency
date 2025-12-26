@@ -30,9 +30,9 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
         this.currencyManager.bootstrapDefaultsIfEmpty();
 
         // Ensure SHEKEL exists (don’t block bootstrap)
-        if (!currencyManager.exists("SHEKEL")) {
+        if (!currencyManager.exists("SHKL")) {
             currencyManager.register(new Currency(
-                    "SHEKEL",
+                    "SHKL",
                     "Shekels of Silver",
                     "₪",
                     BackingType.COMMODITY,

@@ -80,11 +80,11 @@ public class CurrencyManager {
         if (!currencies.isEmpty()) return;
 
         register(new Currency(
-                "DEN",
-                "Denarius",
-                "D",
+                "SHKL",
+                "Shekels of Silver",
+                "₪",
                 BackingType.COMMODITY,
-                Optional.of("IRON_INGOT"),
+                Optional.of("IRON_NUGGET"),
                 10L,     // 1 ingot -> 10 units
                 true,
                 true
