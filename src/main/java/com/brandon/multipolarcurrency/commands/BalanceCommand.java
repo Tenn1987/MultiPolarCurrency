@@ -1,8 +1,8 @@
 package com.brandon.multipolarcurrency.commands;
 
-import com.brandon.multipolarcurrency.economy.Currency;
-import com.brandon.multipolarcurrency.economy.CurrencyManager;
-import com.brandon.multipolarcurrency.economy.WalletService;
+import com.brandon.multipolarcurrency.economy.currency.Currency;
+import com.brandon.multipolarcurrency.economy.currency.CurrencyManager;
+import com.brandon.multipolarcurrency.economy.wallet.WalletService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

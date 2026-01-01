@@ -1,4 +1,4 @@
-package com.brandon.multipolarcurrency.economy;
+package com.brandon.multipolarcurrency.economy.currency;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -14,12 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public final class PhysicalCurrencyItems {
+public final class PhysicalCurrencyFactory {
 
     private static final String KEY_CODE = "mpc_currency_code";
     private static final String KEY_DENOM = "mpc_denom"; // denomination per item (defaults 1)
 
-    private PhysicalCurrencyItems() {}
+    public PhysicalCurrencyFactory() {}
 
     public static NamespacedKey keyCode(JavaPlugin plugin) {
         return new NamespacedKey(plugin, KEY_CODE);

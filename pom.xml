@@ -7,7 +7,7 @@
 
     <groupId>com.brandon</groupId>
     <artifactId>MultiPolarCurrency</artifactId>
-    <version>0.1.71</version>
+    <version>0.2.00</version>
     <packaging>jar</packaging>
 
     <properties>

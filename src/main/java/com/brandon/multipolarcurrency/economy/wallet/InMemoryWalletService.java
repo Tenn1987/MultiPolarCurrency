@@ -1,4 +1,4 @@
-package com.brandon.multipolarcurrency.economy;
+package com.brandon.multipolarcurrency.economy.wallet;
 
 import java.util.Collections;
 import java.util.HashMap;

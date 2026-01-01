@@ -1,4 +1,4 @@
-package com.brandon.multipolarcurrency.economy;
+package com.brandon.multipolarcurrency.economy.wallet;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;

@@ -1,4 +1,4 @@
-package com.brandon.multipolarcurrency.economy;
+package com.brandon.multipolarcurrency.economy.currency;
 
 import java.util.Optional;
 

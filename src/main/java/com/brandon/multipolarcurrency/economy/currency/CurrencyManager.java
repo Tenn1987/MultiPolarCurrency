@@ -1,4 +1,4 @@
-package com.brandon.multipolarcurrency.economy;
+package com.brandon.multipolarcurrency.economy.currency;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -80,7 +80,7 @@ public class CurrencyManager {
         if (!currencies.isEmpty()) return;
 
         register(new Currency(
-                "SHKL",
+                "SHEKEL",
                 "Shekels of Silver",
                 "₪",
                 BackingType.COMMODITY,

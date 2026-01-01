@@ -1,9 +1,9 @@
 package com.brandon.multipolarcurrency.commands;
 
-import com.brandon.multipolarcurrency.economy.Currency;
-import com.brandon.multipolarcurrency.economy.CurrencyManager;
-import com.brandon.multipolarcurrency.economy.PhysicalCurrencyItems;
-import com.brandon.multipolarcurrency.economy.WalletService;
+import com.brandon.multipolarcurrency.economy.currency.Currency;
+import com.brandon.multipolarcurrency.economy.currency.CurrencyManager;
+import com.brandon.multipolarcurrency.economy.currency.PhysicalCurrencyFactory;
+import com.brandon.multipolarcurrency.economy.wallet.WalletService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,11 +18,16 @@ public class WalletCommand implements CommandExecutor {
     private final JavaPlugin plugin;
     private final CurrencyManager currencyManager;
     private final WalletService walletService;
+    private final PhysicalCurrencyFactory physicalFactory;
 
-    public WalletCommand(JavaPlugin plugin, CurrencyManager currencyManager, WalletService walletService) {
+    public WalletCommand(JavaPlugin plugin,
+                         CurrencyManager currencyManager,
+                         WalletService walletService,
+                         PhysicalCurrencyFactory physicalFactory) {
         this.plugin = plugin;
         this.currencyManager = currencyManager;
         this.walletService = walletService;
+        this.physicalFactory = physicalFactory;
     }
 
     @Override
@@ -97,16 +102,20 @@ public class WalletCommand implements CommandExecutor {
         }
         Currency c = curOpt.get();
 
+        // 1) Withdraw from ledger first
         boolean ok = walletService.withdraw(player.getUniqueId(), code, amount);
         if (!ok) {
-            senderLine(player, "§cInsufficient funds. Wallet " + code + " balance: §f" +
-                    walletService.balance(player.getUniqueId(), code));
+            senderLine(player, "§cInsufficient funds. Wallet " + code + " balance: §f"
+                    + walletService.balance(player.getUniqueId(), code));
             return;
         }
 
-        List<org.bukkit.inventory.ItemStack> items = PhysicalCurrencyItems.createPhysical(plugin, c, amount);
+        // 2) Create physical items AFTER successful ledger withdraw
+        List<org.bukkit.inventory.ItemStack> items =
+                PhysicalCurrencyFactory.createPhysical(plugin, c, amount);
 
-        for (var item : items) {
+        // 3) Give items to player; drop leftovers
+        for (org.bukkit.inventory.ItemStack item : items) {
             var leftover = player.getInventory().addItem(item);
             if (!leftover.isEmpty()) {
                 leftover.values().forEach(stack ->
@@ -143,7 +152,7 @@ public class WalletCommand implements CommandExecutor {
 
         long toRemove = (requested > 0) ? requested : Long.MAX_VALUE;
 
-        long removedUnits = PhysicalCurrencyItems.removeCurrencyFromInventory(plugin, player, code, toRemove);
+        long removedUnits = PhysicalCurrencyFactory.removeCurrencyFromInventory(plugin, player, code, toRemove);
         if (removedUnits <= 0) {
             senderLine(player, "§cNo physical " + code + " found in your inventory.");
             return;

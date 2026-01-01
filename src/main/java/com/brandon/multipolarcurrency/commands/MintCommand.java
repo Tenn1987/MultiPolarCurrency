@@ -1,41 +1,51 @@
 package com.brandon.multipolarcurrency.commands;
 
-import com.brandon.multipolarcurrency.economy.BackingType;
-import com.brandon.multipolarcurrency.economy.Currency;
-import com.brandon.multipolarcurrency.economy.CurrencyManager;
-import com.brandon.multipolarcurrency.economy.WalletService;
+import com.brandon.multipolarcurrency.economy.authority.MintAuthority;
+import com.brandon.multipolarcurrency.economy.currency.BackingType;
+import com.brandon.multipolarcurrency.economy.currency.Currency;
+import com.brandon.multipolarcurrency.economy.currency.CurrencyManager;
+import com.brandon.multipolarcurrency.economy.currency.PhysicalCurrencyFactory;
+import com.brandon.multipolarcurrency.economy.wallet.WalletService;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
+import org.bukkit.inventory.ItemStack;
 
-import java.util.Locale;
 import java.util.Optional;
 
 public class MintCommand implements CommandExecutor {
 
     private final CurrencyManager currencyManager;
     private final WalletService walletService;
+    private final PhysicalCurrencyFactory physicalFactory;
+    private final MintAuthority authority;
 
-    public MintCommand(CurrencyManager currencyManager, WalletService walletService) {
+    public MintCommand(CurrencyManager currencyManager,
+                       WalletService walletService,
+                       PhysicalCurrencyFactory physicalFactory,
+                       MintAuthority authority) {
         this.currencyManager = currencyManager;
         this.walletService = walletService;
+        this.physicalFactory = physicalFactory;
+        this.authority = authority;
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
-        if (args.length < 2) {
-            sender.sendMessage("§eUsage: /mint <currencyCode> <amount> [player]");
-            sender.sendMessage("§7- Commodity-backed requires the backing item in inventory.");
-            sender.sendMessage("§7- Fiat minting is admin-only.");
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cPlayers only.");
             return true;
         }
 
-        String code = args[0].toUpperCase(Locale.ROOT);
+        if (args.length < 2) {
+            sender.sendMessage("§cUsage: /mint <CODE> <amount>");
+            return true;
+        }
 
+        String code = args[0].toUpperCase();
         long amount;
         try {
             amount = Long.parseLong(args[1]);
@@ -51,110 +61,82 @@ public class MintCommand implements CommandExecutor {
 
         Optional<Currency> opt = currencyManager.getCurrency(code);
         if (opt.isEmpty()) {
-            sender.sendMessage("§cUnknown currency: §f" + code);
+            sender.sendMessage("§cCurrency not found.");
             return true;
         }
 
         Currency currency = opt.get();
 
-        if (!currency.enabled()) {
-            sender.sendMessage("§cThat currency is disabled.");
+        if (!authority.canMint(sender, currency, amount)) {
+            sender.sendMessage("§cYou are not allowed to mint that currency.");
             return true;
         }
 
-        if (!currency.mintable()) {
-            sender.sendMessage("§cThat currency is not mintable.");
-            return true;
-        }
+        // COMMODITY-backed minting consumes backing items from inventory.
+        if (currency.backingType() == BackingType.COMMODITY) {
+            Optional<String> backingOpt = currency.backingMaterial();
+            if (backingOpt.isEmpty()) {
+                sender.sendMessage("§cThis commodity currency has no backing material configured.");
+                return true;
+            }
 
-        // Target player
-        Player target;
-        if (args.length >= 3) {
-            if (!sender.hasPermission("multipolarcurrency.admin")) {
-                sender.sendMessage("§cYou do not have permission to mint to other players.");
+            Material backingMat = Material.matchMaterial(backingOpt.get());
+            if (backingMat == null || backingMat.isAir()) {
+                sender.sendMessage("§cInvalid backing material: " + backingOpt.get());
                 return true;
             }
-            target = sender.getServer().getPlayerExact(args[2]);
-            if (target == null) {
-                sender.sendMessage("§cPlayer not found: §f" + args[2]);
+
+            long unitsPerItem = Math.max(1L, currency.unitsPerBackingItem());
+            long itemsNeeded = (amount + unitsPerItem - 1L) / unitsPerItem; // ceil(amount/unitsPerItem)
+
+            if (!hasAtLeast(player, backingMat, itemsNeeded)) {
+                sender.sendMessage("§cNot enough backing material.");
+                sender.sendMessage("§7Need: §f" + itemsNeeded + " " + backingMat.name()
+                        + " §7for §f" + amount + " §7units (" + unitsPerItem + " units/item).");
                 return true;
             }
+
+            removeExact(player, backingMat, itemsNeeded);
+            sender.sendMessage("§7Consumed backing: §f" + itemsNeeded + " " + backingMat.name()
+                    + " §7(" + unitsPerItem + " units/item).");
         } else {
-            if (!(sender instanceof Player p)) {
-                sender.sendMessage("§cConsole must specify a player: /mint <code> <amount> <player>");
-                return true;
-            }
-            target = p;
+            // FIAT minting: no material consumption, but still governed by authority.
+            // (Your sim logic later can change this.)
         }
 
-        // FIAT vs COMMODITY rules
-        if (currency.backingType() == BackingType.FIAT) {
-            // Keep FIAT minting admin-only so it doesn't trivialize commodity-backed systems.
-            if (!sender.hasPermission("multipolarcurrency.admin")) {
-                sender.sendMessage("§cFiat minting is admin-only.");
-                return true;
-            }
+        // Minting increases wallet balance (physical is produced by /wallet withdraw)
+        walletService.deposit(player.getUniqueId(), code, amount);
+        walletService.save();
 
-            walletService.deposit(target.getUniqueId(), code, amount);
-            sender.sendMessage("§aMinted §f" + amount + "§a " + currency.symbol() + " §7(" + code + ")§a to §f" + target.getName() + "§a.");
-            return true;
-        }
-
-        // COMMODITY-backed: require backing material and unitsPerBackingItem
-        Optional<String> backingMaterialName = currency.backingMaterial();
-        if (backingMaterialName.isEmpty()) {
-            sender.sendMessage("§cThis commodity currency has no backing material configured.");
-            return true;
-        }
-
-        long unitsPerItem = currency.unitsPerBackingItem();
-        if (unitsPerItem <= 0) {
-            sender.sendMessage("§cThis commodity currency has an invalid unitsPerBackingItem value.");
-            return true;
-        }
-
-        Material mat = Material.matchMaterial(backingMaterialName.get());
-        if (mat == null) {
-            sender.sendMessage("§cInvalid backing material configured: §f" + backingMaterialName.get());
-            return true;
-        }
-
-        // Reserve check math: itemsNeeded = ceil(amount / unitsPerItem)
-        long itemsNeeded = (amount + unitsPerItem - 1) / unitsPerItem;
-
-        if (!(target.getInventory().containsAtLeast(new org.bukkit.inventory.ItemStack(mat), (int) itemsNeeded))) {
-            sender.sendMessage("§cNot enough backing material.");
-            sender.sendMessage("§7Need: §f" + itemsNeeded + " " + mat.name() + "§7 for §f" + amount + "§7 units ("
-                    + unitsPerItem + " units/item).");
-            return true;
-        }
-
-        // Remove items from inventory (exact amount)
-        removeItems(target, mat, (int) itemsNeeded);
-
-        // Deposit minted currency
-        walletService.deposit(target.getUniqueId(), code, amount);
-
-        sender.sendMessage("§aMinted §f" + amount + "§a " + currency.symbol() + " §7(" + code + ")§a to §f" + target.getName() + "§a.");
-        sender.sendMessage("§7Consumed backing: §f" + itemsNeeded + " " + mat.name() + "§7 (" + unitsPerItem + " units/item).");
-
+        sender.sendMessage("§aMinted §f" + amount + " " + code + " §ato " + player.getName() + ".");
         return true;
     }
 
-    private void removeItems(Player player, Material mat, int amount) {
-        int remaining = amount;
+    private boolean hasAtLeast(Player player, Material mat, long needed) {
+        long count = 0L;
+        for (ItemStack it : player.getInventory().getContents()) {
+            if (it == null) continue;
+            if (it.getType() != mat) continue;
+            count += it.getAmount();
+            if (count >= needed) return true;
+        }
+        return count >= needed;
+    }
 
-        var inv = player.getInventory();
-        for (int i = 0; i < inv.getSize(); i++) {
-            var item = inv.getItem(i);
-            if (item == null || item.getType() != mat) continue;
+    private void removeExact(Player player, Material mat, long needed) {
+        long remaining = needed;
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack it = contents[i];
+            if (it == null || it.getType() != mat) continue;
 
-            int take = Math.min(item.getAmount(), remaining);
-            item.setAmount(item.getAmount() - take);
-            if (item.getAmount() <= 0) inv.setItem(i, null);
-
+            int take = (int) Math.min((long) it.getAmount(), remaining);
+            it.setAmount(it.getAmount() - take);
             remaining -= take;
+
+            if (it.getAmount() <= 0) contents[i] = null;
             if (remaining <= 0) break;
         }
+        player.getInventory().setContents(contents);
     }
 }
