@@ -3,6 +3,7 @@ package com.brandon.multipolarcurrency.commands;
 import com.brandon.multipolarcurrency.economy.currency.Currency;
 import com.brandon.multipolarcurrency.economy.currency.CurrencyManager;
 import com.brandon.multipolarcurrency.economy.currency.PhysicalCurrencyFactory;
+import com.brandon.multipolarcurrency.economy.exchange.ExchangeService;
 import com.brandon.multipolarcurrency.economy.wallet.WalletService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -19,15 +20,18 @@ public class WalletCommand implements CommandExecutor {
     private final CurrencyManager currencyManager;
     private final WalletService walletService;
     private final PhysicalCurrencyFactory physicalFactory;
+    private final ExchangeService exchange;
 
     public WalletCommand(JavaPlugin plugin,
                          CurrencyManager currencyManager,
                          WalletService walletService,
-                         PhysicalCurrencyFactory physicalFactory) {
+                         PhysicalCurrencyFactory physicalFactory,
+                         ExchangeService exchange) {
         this.plugin = plugin;
         this.currencyManager = currencyManager;
         this.walletService = walletService;
         this.physicalFactory = physicalFactory;
+        this.exchange = exchange;
     }
 
     @Override
@@ -125,6 +129,10 @@ public class WalletCommand implements CommandExecutor {
         }
 
         senderLine(player, "§aWithdrew §f" + amount + "§a " + code + " into physical currency.");
+
+        exchange.recordPressure(code, +0.001 * amount); // BUY pressure
+        exchange.settle();
+
     }
 
     private void walletDeposit(Player player, String[] args) {
@@ -166,6 +174,10 @@ public class WalletCommand implements CommandExecutor {
         }
 
         senderLine(player, "§aDeposited §f" + removedUnits + "§a " + code + " into wallet.");
+
+        exchange.recordPressure(code, -0.001 * removedUnits); // SELL pressure
+        exchange.settle();
+
     }
 
     private long parseLong(String s) {

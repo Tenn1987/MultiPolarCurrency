@@ -1,5 +1,5 @@
 name: MultiPolarCurrency
-version: 0.2.0
+version: 0.2.2
 main: com.brandon.multipolarcurrency.MultiPolarCurrencyPlugin
 api-version: "1.21"
 
@@ -13,6 +13,10 @@ commands:
     description: Check balances
     usage: /balance [CODE]
     aliases: [bal, money]
+
+  exchange:
+    description: Currency exchange oracle (COMEX)
+    usage: /exchange
 
   mint:
     description: Mint currency into wallet (backing checked)
