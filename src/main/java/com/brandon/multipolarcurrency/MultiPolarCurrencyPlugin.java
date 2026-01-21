@@ -61,7 +61,7 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
                 .setExecutor(new BalanceCommand(currencyManager, walletService));
 
         Objects.requireNonNull(getCommand("mint"), "mint missing from plugin.yml")
-                .setExecutor(new MintCommand(currencyManager, walletService, physicalFactory, authority));
+                .setExecutor(new MintCommand(currencyManager, walletService, physicalFactory, authority, exchangeService));
 
         Objects.requireNonNull(getCommand("wallet"), "wallet missing from plugin.yml")
                 .setExecutor(new WalletCommand(this, currencyManager, walletService, physicalFactory, exchangeService));

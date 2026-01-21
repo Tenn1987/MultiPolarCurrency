@@ -131,7 +131,7 @@ public class WalletCommand implements CommandExecutor {
         senderLine(player, "§aWithdrew §f" + amount + "§a " + code + " into physical currency.");
 
         exchange.recordPressure(code, +0.001 * amount); // BUY pressure
-        exchange.settle();
+        exchange.settle(0.05);
 
     }
 
@@ -176,7 +176,7 @@ public class WalletCommand implements CommandExecutor {
         senderLine(player, "§aDeposited §f" + removedUnits + "§a " + code + " into wallet.");
 
         exchange.recordPressure(code, -0.001 * removedUnits); // SELL pressure
-        exchange.settle();
+        exchange.settle(0.05);
 
     }
 

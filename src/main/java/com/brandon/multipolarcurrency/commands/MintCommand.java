@@ -5,6 +5,7 @@ import com.brandon.multipolarcurrency.economy.currency.BackingType;
 import com.brandon.multipolarcurrency.economy.currency.Currency;
 import com.brandon.multipolarcurrency.economy.currency.CurrencyManager;
 import com.brandon.multipolarcurrency.economy.currency.PhysicalCurrencyFactory;
+import com.brandon.multipolarcurrency.economy.exchange.ExchangeService;
 import com.brandon.multipolarcurrency.economy.wallet.WalletService;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -19,17 +20,21 @@ public class MintCommand implements CommandExecutor {
 
     private final CurrencyManager currencyManager;
     private final WalletService walletService;
-    private final PhysicalCurrencyFactory physicalFactory;
+    @SuppressWarnings("unused")
+    private final PhysicalCurrencyFactory physicalFactory; // kept for future physical minting if desired
     private final MintAuthority authority;
+    private final ExchangeService exchange;
 
     public MintCommand(CurrencyManager currencyManager,
                        WalletService walletService,
                        PhysicalCurrencyFactory physicalFactory,
-                       MintAuthority authority) {
+                       MintAuthority authority,
+                       ExchangeService exchange) {
         this.currencyManager = currencyManager;
         this.walletService = walletService;
         this.physicalFactory = physicalFactory;
         this.authority = authority;
+        this.exchange = exchange;
     }
 
     @Override
@@ -46,6 +51,7 @@ public class MintCommand implements CommandExecutor {
         }
 
         String code = args[0].toUpperCase();
+
         long amount;
         try {
             amount = Long.parseLong(args[1]);
@@ -99,9 +105,6 @@ public class MintCommand implements CommandExecutor {
             removeExact(player, backingMat, itemsNeeded);
             sender.sendMessage("§7Consumed backing: §f" + itemsNeeded + " " + backingMat.name()
                     + " §7(" + unitsPerItem + " units/item).");
-        } else {
-            // FIAT minting: no material consumption, but still governed by authority.
-            // (Your sim logic later can change this.)
         }
 
         // Minting increases wallet balance (physical is produced by /wallet withdraw)
@@ -109,6 +112,13 @@ public class MintCommand implements CommandExecutor {
         walletService.save();
 
         sender.sendMessage("§aMinted §f" + amount + " " + code + " §ato " + player.getName() + ".");
+
+        // FIAT printing pressure: no auto “return to oracle” drift—only other signals push it back.
+        if (currency.backingType() == BackingType.FIAT) {
+            exchange.recordPressure(currency.code(), -0.001 * amount); // tune factor
+            exchange.settle(0.05);
+        }
+
         return true;
     }
 
