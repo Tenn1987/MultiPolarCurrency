@@ -14,6 +14,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Physical currency items:
+ * - Stores currency code + denomination in PDC
+ * - Supports /wallet withdraw -> creates items
+ * - Supports /wallet deposit -> removes items
+ */
 public final class PhysicalCurrencyFactory {
 
     private static final String KEY_CODE = "mpc_currency_code";
@@ -34,7 +40,7 @@ public final class PhysicalCurrencyFactory {
         // Commodity-backed: use backing material if valid, otherwise PAPER fallback.
         if (c.backingType() == BackingType.COMMODITY) {
             Optional<String> bm = c.backingMaterial();
-            if (bm.isPresent()) {
+            if (bm != null && bm.isPresent()) {
                 Material m = Material.matchMaterial(bm.get());
                 if (m != null) return m;
             }
@@ -45,10 +51,13 @@ public final class PhysicalCurrencyFactory {
         return Material.PAPER;
     }
 
-    /** Create stackable physical items representing <amount> whole units (denomination = 1). */
+    /**
+     * WalletCommand expects this exact signature.
+     * Creates stackable physical items representing <amount> whole units (denomination = 1).
+     */
     public static List<ItemStack> createPhysical(JavaPlugin plugin, Currency c, long amount) {
         List<ItemStack> out = new ArrayList<>();
-        if (amount <= 0) return out;
+        if (plugin == null || c == null || amount <= 0) return out;
 
         Material mat = materialFor(c);
         int maxStack = mat.getMaxStackSize();
@@ -64,11 +73,14 @@ public final class PhysicalCurrencyFactory {
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 meta.setDisplayName("§f" + c.symbol() + " §7" + c.code() + " §8— §e" + c.displayName());
+
                 List<String> lore = new ArrayList<>();
                 lore.add("§7Currency: §f" + c.code());
                 lore.add("§7Type: §f" + c.backingType());
                 lore.add("§7Denom: §f" + denom);
-                c.issuer().ifPresent(iss -> lore.add("§7Issuer: §f" + iss));
+                if (c.issuer() != null && c.issuer().isPresent()) {
+                    lore.add("§7Issuer: §f" + c.issuer().get());
+                }
                 meta.setLore(lore);
 
                 PersistentDataContainer pdc = meta.getPersistentDataContainer();
@@ -87,7 +99,7 @@ public final class PhysicalCurrencyFactory {
 
     /** Check if an item is one of our currency items, and return its currency code if so. */
     public static Optional<String> readCurrencyCode(JavaPlugin plugin, ItemStack item) {
-        if (item == null || item.getType().isAir()) return Optional.empty();
+        if (plugin == null || item == null || item.getType().isAir()) return Optional.empty();
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return Optional.empty();
 
@@ -99,7 +111,7 @@ public final class PhysicalCurrencyFactory {
 
     /** How many whole units this stack represents (stackSize * denom). */
     public static long unitsInStack(JavaPlugin plugin, ItemStack item) {
-        if (item == null || item.getType().isAir()) return 0;
+        if (plugin == null || item == null || item.getType().isAir()) return 0;
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return 0;
 
@@ -110,9 +122,14 @@ public final class PhysicalCurrencyFactory {
         return (long) item.getAmount() * denom;
     }
 
-    /** Remove up to <unitsToRemove> units of physical currency items matching <code> from inventory. Returns removed units. */
+    /**
+     * WalletCommand expects this exact signature.
+     * Remove up to <unitsToRemove> units of physical currency items matching <code> from inventory.
+     * Returns removed units.
+     */
     public static long removeCurrencyFromInventory(JavaPlugin plugin, Player player, String code, long unitsToRemove) {
-        if (unitsToRemove <= 0) return 0;
+        if (plugin == null || player == null || code == null || code.isBlank() || unitsToRemove <= 0) return 0;
+
         PlayerInventory inv = player.getInventory();
         long remaining = unitsToRemove;
         long removed = 0;
@@ -127,17 +144,16 @@ public final class PhysicalCurrencyFactory {
             long stackUnits = unitsInStack(plugin, stack);
             if (stackUnits <= 0) continue;
 
-            // denom is 1 in our current implementation; but keep it generic.
-            ItemMeta meta = stack.getItemMeta();
+            // denom (defaults 1)
             int denom = 1;
+            ItemMeta meta = stack.getItemMeta();
             if (meta != null) {
                 Integer d = meta.getPersistentDataContainer().get(keyDenom(plugin), PersistentDataType.INTEGER);
                 if (d != null && d > 0) denom = d;
             }
 
             long canTakeUnits = Math.min(stackUnits, remaining);
-            int canTakeItems = (int) (canTakeUnits / denom);
-
+            int canTakeItems = (int) Math.min(Integer.MAX_VALUE, (canTakeUnits / denom));
             if (canTakeItems <= 0) continue;
 
             int newAmount = stack.getAmount() - canTakeItems;

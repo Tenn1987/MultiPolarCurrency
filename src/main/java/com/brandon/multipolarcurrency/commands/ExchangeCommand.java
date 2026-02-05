@@ -1,5 +1,6 @@
-package com.brandon.multipolarcurrency.economy.exchange;
+package com.brandon.multipolarcurrency.commands;
 
+import com.brandon.multipolarcurrency.economy.exchange.ExchangeService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

@@ -8,12 +8,15 @@ import com.brandon.multipolarcurrency.economy.authority.MintAuthority;
 import com.brandon.multipolarcurrency.economy.authority.PermissionMintAuthority;
 import com.brandon.multipolarcurrency.economy.currency.CurrencyManager;
 import com.brandon.multipolarcurrency.economy.currency.PhysicalCurrencyFactory;
+import com.brandon.multipolarcurrency.economy.exchange.BackingEvaluator;
+import com.brandon.multipolarcurrency.commands.ExchangeCommand;
+import com.brandon.multipolarcurrency.economy.exchange.ExchangeService;
 import com.brandon.multipolarcurrency.economy.wallet.WalletService;
 import com.brandon.multipolarcurrency.economy.wallet.YamlWalletService;
-import com.brandon.multipolarcurrency.economy.exchange.*;
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Map;
 import java.util.Objects;
 
 public class MultiPolarCurrencyPlugin extends JavaPlugin {
@@ -29,15 +32,20 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
 
         // Core services (create ONCE)
         this.currencyManager = new CurrencyManager(this);
+
+        // ✅ WalletService is abstract: use your concrete implementation
         this.walletService = new YamlWalletService(this);
-        this.physicalFactory = new PhysicalCurrencyFactory(); // must be public; if yours is static-only, remove this and adjust constructors
+
+        // ✅ WalletCommand expects an instance; ensure PhysicalCurrencyFactory ctor is PUBLIC
+        this.physicalFactory = new PhysicalCurrencyFactory();
+
         this.authority = new PermissionMintAuthority();
 
         // Load defaults if empty/missing
         this.currencyManager.bootstrapDefaultsIfEmpty();
 
-        // ComEx (Phase 2 starter)
-        var commodityRef = java.util.Map.of(
+        // Fallback reference prices (used only if MedievalMarkets service isn't available at runtime)
+        Map<Material, Double> commodityRef = Map.of(
                 Material.IRON_INGOT, 1.0,
                 Material.COPPER_INGOT, 0.5,
                 Material.GOLD_INGOT, 9.0,
@@ -47,13 +55,14 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
         );
 
         BackingEvaluator evaluator = new BackingEvaluator(commodityRef);
+
+        // ExchangeService signature (plugin, currencyManager, evaluator, baseCurrencyCode)
         this.exchangeService = new ExchangeService(this, currencyManager, evaluator, "SHEKEL");
 
+        // Register commands (plugin.yml must contain these)
         Objects.requireNonNull(getCommand("exchange"), "exchange missing from plugin.yml")
                 .setExecutor(new ExchangeCommand(exchangeService));
 
-
-        // Register commands (plugin.yml must contain these)
         Objects.requireNonNull(getCommand("currency"), "currency missing from plugin.yml")
                 .setExecutor(new CurrencyCommand(currencyManager, authority));
 
@@ -71,8 +80,14 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (walletService != null) walletService.save();
-        if (currencyManager != null) currencyManager.save();
-        if (exchangeService != null) exchangeService.save();
+        try {
+            if (walletService != null) walletService.save();
+        } catch (Throwable ignored) {}
+        try {
+            if (currencyManager != null) currencyManager.save();
+        } catch (Throwable ignored) {}
+        try {
+            if (exchangeService != null) exchangeService.save();
+        } catch (Throwable ignored) {}
     }
 }
