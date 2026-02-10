@@ -45,14 +45,14 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
         this.currencyManager.bootstrapDefaultsIfEmpty();
 
         // Fallback reference prices (used only if MedievalMarkets service isn't available at runtime)
-        Map<Material, Double> commodityRef = Map.of(
-                Material.IRON_INGOT, 1.0,
-                Material.COPPER_INGOT, 0.5,
-                Material.GOLD_INGOT, 9.0,
-                Material.IRON_NUGGET, 0.1,
-                Material.GOLD_NUGGET, 1.0,
-                Material.NETHERITE_INGOT, 100.0
-        );
+        Map<Material, Double> commodityRef = new java.util.EnumMap<>(Material.class);
+        commodityRef.put(Material.IRON_INGOT, 1.0);
+        commodityRef.put(Material.COPPER_INGOT, 0.54);
+        commodityRef.put(Material.COPPER_NUGGET, 0.06);
+        commodityRef.put(Material.GOLD_INGOT, 9.0);
+        commodityRef.put(Material.IRON_NUGGET, 0.1);
+        commodityRef.put(Material.GOLD_NUGGET, 1.0);
+        commodityRef.put(Material.NETHERITE_INGOT, 100.0);
 
         BackingEvaluator evaluator = new BackingEvaluator(commodityRef);
 
