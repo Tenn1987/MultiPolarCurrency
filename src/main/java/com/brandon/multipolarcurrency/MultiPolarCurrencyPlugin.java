@@ -26,6 +26,9 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
     private PhysicalCurrencyFactory physicalFactory;
     private MintAuthority authority;
     private ExchangeService exchangeService;
+    public CurrencyManager getCurrencyManager() {
+        return this.currencyManager;
+    }
 
     @Override
     public void onEnable() {
