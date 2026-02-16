@@ -29,6 +29,10 @@ public class MultiPolarCurrencyPlugin extends JavaPlugin {
     public CurrencyManager getCurrencyManager() {
         return this.currencyManager;
     }
+    public WalletService getWalletService() {
+        return this.walletService;
+    }
+
 
     @Override
     public void onEnable() {
