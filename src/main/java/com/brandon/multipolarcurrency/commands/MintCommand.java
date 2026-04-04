@@ -18,10 +18,14 @@ import java.util.Optional;
 
 public class MintCommand implements CommandExecutor {
 
+    private static final long BATCH_SIZE = 9L;
+    private static final long PLAYER_SHARE = 8L;
+    private static final long BURG_SHARE = 1L;
+
     private final CurrencyManager currencyManager;
     private final WalletService walletService;
     @SuppressWarnings("unused")
-    private final PhysicalCurrencyFactory physicalFactory; // kept for future physical minting if desired
+    private final PhysicalCurrencyFactory physicalFactory;
     private final MintAuthority authority;
     private final ExchangeService exchange;
 
@@ -46,22 +50,23 @@ public class MintCommand implements CommandExecutor {
         }
 
         if (args.length < 2) {
-            sender.sendMessage("§cUsage: /mint <CODE> <amount>");
+            sender.sendMessage("§cUsage: /mint <CODE> <batchCount>");
+            sender.sendMessage("§7Each batch mints §f9 total units§7: §f8 to player §7and §f1 to burg§7.");
             return true;
         }
 
         String code = args[0].toUpperCase();
 
-        long amount;
+        long batchCount;
         try {
-            amount = Long.parseLong(args[1]);
+            batchCount = Long.parseLong(args[1]);
         } catch (NumberFormatException e) {
-            sender.sendMessage("§cAmount must be a whole number.");
+            sender.sendMessage("§cBatch count must be a whole number.");
             return true;
         }
 
-        if (amount <= 0) {
-            sender.sendMessage("§cAmount must be > 0.");
+        if (batchCount <= 0) {
+            sender.sendMessage("§cBatch count must be > 0.");
             return true;
         }
 
@@ -72,13 +77,15 @@ public class MintCommand implements CommandExecutor {
         }
 
         Currency currency = opt.get();
+        long grossUnits = batchCount * BATCH_SIZE;
+        long playerUnits = batchCount * PLAYER_SHARE;
+        long burgUnits = batchCount * BURG_SHARE;
 
-        if (!authority.canMint(sender, currency, amount)) {
+        if (!authority.canMint(sender, currency, grossUnits)) {
             sender.sendMessage("§cYou are not allowed to mint that currency.");
             return true;
         }
 
-        // COMMODITY-backed minting consumes backing items from inventory.
         if (currency.backingType() == BackingType.COMMODITY) {
             Optional<String> backingOpt = currency.backingMaterial();
             if (backingOpt.isEmpty()) {
@@ -92,30 +99,30 @@ public class MintCommand implements CommandExecutor {
                 return true;
             }
 
-            long unitsPerItem = Math.max(1L, currency.unitsPerBackingItem());
-            long itemsNeeded = (amount + unitsPerItem - 1L) / unitsPerItem; // ceil(amount/unitsPerItem)
+            long itemsPerUnit = Math.max(1L, currency.unitsPerBackingItem());
+            long itemsNeeded = grossUnits * itemsPerUnit;
 
             if (!hasAtLeast(player, backingMat, itemsNeeded)) {
                 sender.sendMessage("§cNot enough backing material.");
-                sender.sendMessage("§7Need: §f" + itemsNeeded + " " + backingMat.name()
-                        + " §7for §f" + amount + " §7units (" + unitsPerItem + " units/item).");
+                sender.sendMessage("§7Need: §f" + itemsNeeded + " " + backingMat.name());
+                sender.sendMessage("§7For: §f" + batchCount + " batch(es) = " + grossUnits + " total units");
+                sender.sendMessage("§7Rate: §f" + itemsPerUnit + " " + backingMat.name() + " §7per unit");
                 return true;
             }
 
             removeExact(player, backingMat, itemsNeeded);
-            sender.sendMessage("§7Consumed backing: §f" + itemsNeeded + " " + backingMat.name()
-                    + " §7(" + unitsPerItem + " units/item).");
+            sender.sendMessage("§7Consumed backing: §f" + itemsNeeded + " " + backingMat.name());
         }
 
-        // Minting increases wallet balance (physical is produced by /wallet withdraw)
-        walletService.deposit(player.getUniqueId(), code, amount);
+        walletService.deposit(player.getUniqueId(), code, playerUnits);
         walletService.save();
 
-        sender.sendMessage("§aMinted §f" + amount + " " + code + " §ato " + player.getName() + ".");
+        sender.sendMessage("§aMinted §f" + playerUnits + " " + code + " §ato " + player.getName() + ".");
+        sender.sendMessage("§7Treasury share reserved: §f" + burgUnits + " " + code + "§7.");
+        sender.sendMessage("§7Gross minted: §f" + grossUnits + " " + code + " §7(" + batchCount + " batch(es)).");
 
-        // FIAT printing pressure: no auto “return to oracle” drift—only other signals push it back.
         if (currency.backingType() == BackingType.FIAT) {
-            exchange.recordPressure(currency.code(), -0.001 * amount); // tune factor
+            exchange.recordPressure(currency.code(), -0.001 * grossUnits);
             exchange.settle(0.05);
         }
 

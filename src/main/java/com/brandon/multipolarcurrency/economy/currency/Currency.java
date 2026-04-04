@@ -10,19 +10,28 @@ import java.util.Optional;
  * - Commodity-backed currencies derive value dynamically via BackingEvaluator (not stored here).
  * - Fiat currencies get their value from ExchangeStore (oracle).
  *
- * This record includes "issuer" to satisfy CurrencyCommand + lore rendering.
- * It also includes a backwards-compatible 8-arg constructor so older code still compiles.
+ * SEMANTICS (v2):
+ * - unitsPerBackingItem = backing items consumed per 1 currency unit.
+ *
+ * Examples:
+ * - 1 => 1 backing item per coin/unit
+ * - 2 => 2 backing items per coin/unit
+ *
+ * Coinsmith batch model:
+ * - 1 press = 9 total units minted
+ * - 8 units to player
+ * - 1 unit to burg/treasury
  */
 public record Currency(
-        String code,                      // e.g. USD, DEN, COPPER
-        String displayName,               // e.g. "United States Dollar"
-        String symbol,                    // e.g. "$"
-        BackingType backingType,          // COMMODITY or FIAT
-        Optional<String> backingMaterial, // e.g. "COPPER_INGOT"
-        long unitsPerBackingItem,         // e.g. 10 => 1 ingot backs 10 coins
+        String code,
+        String displayName,
+        String symbol,
+        BackingType backingType,
+        Optional<String> backingMaterial,
+        long unitsPerBackingItem,
         boolean mintable,
         boolean enabled,
-        Optional<String> issuer           // e.g. "SYSTEM", "CBANK:Rome", player name, etc.
+        Optional<String> issuer
 ) {
 
     public Currency {
@@ -34,12 +43,11 @@ public record Currency(
         if (unitsPerBackingItem <= 0) unitsPerBackingItem = 1;
         if (issuer == null) issuer = Optional.empty();
 
-        // Normalize code to upper
         code = code.toUpperCase(Locale.ROOT);
     }
 
     /**
-     * Backwards-compatible constructor to support older code that still calls the 8-arg record ctor.
+     * Backwards-compatible constructor for older call sites.
      */
     public Currency(
             String code,
